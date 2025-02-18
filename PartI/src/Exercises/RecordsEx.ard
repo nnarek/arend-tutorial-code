@@ -1,37 +1,55 @@
+
 \import Records
 
 -- 1. Define the function 'swap' in several ways.
 
 -- Using \cowith and field access.
-\func swap {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap {A B : \Type} (p : Pair A B) : Pair B A \cowith
+  | fst' => p.snd'
+  | snd' => p.fst'
 
 -- Using \new and pattern matching.
-\func swap' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap' {A B : \Type} (p : Pair A B) : Pair B A
+  | (a,b) => \new Pair { | fst' => b | snd' => a }
 
 -- Using \new and field access.
-\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => \new Pair { | fst' => p.snd' | snd' => p.fst' }
 
 -- 2. Prove that 'swap (swap p) = p'.
 
-\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p => {?}
+\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p
+  | (a,b) => idp
 
 -- 3. Prove that the type 'PosNat 0' is empty, but the type 'PosNat 1' is not.
 
 \data Empty
 
-\func zero-isNotPos (p : PosNat 0) : Empty => {?}
+\func zero-isNotPos (t : PosNat 0) : Empty -- TODO how they declare "PosNat 0" without providing second argument (which is proof of something)
+  => elim t.p
+  \where
+    \func elim (t : T (isPos 0)) : Empty \elim t
+      | ()
 
-\func one-isPos : PosNat 1 => {?}
+
+\func one-isPos : PosNat 1 => \new PosNat { | n => 1 | p => tt}
 
 -- 4. Define the \record consisting of pairs of coprime natural numbers.
 --    Define the type of natural numbers that are coprime with 60.
 
+\import Exercises.BasicsEx (gcd)
+
+\record CoprimeNat (a b : Nat) (p : gcd a b = 1)
+
+\record Coprime60Nat (a : Nat) (p : CoprimeNat a 60)
+
 -- 5. Define the class of monads, which extends the class of functors. Define \instance of this class for 'Maybe'.
 
 \data Maybe (A : \Type) | nothing | just A
+  -- TODO
 
 -- 6. Define instances for the class of monads for 'State' and 'State''.
 
+-- TODO
 \record State (S A : \Type)
   | state : S -> \Sigma S A
 

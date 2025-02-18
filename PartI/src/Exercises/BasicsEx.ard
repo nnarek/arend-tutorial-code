@@ -1,42 +1,85 @@
+\import Basics
+\import Prelude
 -- 1. Define priorities of the functions f1, f2, f3, f4, f5 and f6 so that the function 'test' typechecks.
 
 \func f1 (x y : Nat) => x
 \func f2 : Nat => 0
-\func f3 (f : Nat -> Nat) (z : Nat) : Int => 0
-\func f4 : Nat => 0
+\func \infixr 2 f3 (f : Nat -> Nat) (z : Nat) : Int => 0
+\func \infixl 4 f4 : Nat => 0
 \func f5 => f1
 \func f6 => f4
 
-\func test => f1 f2 f3 f4 f5 f6
+\func test => f1 f2 f3 f4 f5 f6 -- TODO
 
 -- 2. Define in Arend the function 'if', which takes a boolean value b and two elements of an arbitrary type A
 --    and return the first element when b equals to true and the second one otherwise.
 
 \data Bool | true | false
 
+\func if {A : \Type} (b : Bool) (x y : A) : A \elim b
+  | true => x
+  | false => y
+
 -- 3. Define || via 'if'.
 
-\func \infixr 2 || (x y : Bool) : Bool => {?}
+\func \infixr 2 || (x y : Bool) : Bool => if x true y
 
 -- 4. Define the power and the factorial functions for natural numbers.
 
-\func \infixr 8 ^ (x y : Nat) => {?}
+\func \infixr 8 ^ (x y : Nat) : Nat \elim y
+  | zero => suc zero
+  | suc y' => x * (x ^ y')
 
-\func fac (x : Nat) => {?}
+\func fac (x : Nat) : Nat \elim x
+  | 0 => 1
+  | suc x' => suc x' * fac x'
 
 -- 5. Define mod and gcd.
 
-\func mod (x y : Nat) => {?}
+\func eq (x y : Nat) : Bool
+  | 0, 0 => true
+  | 0, suc y => false
+  | suc x, 0 => false
+  | suc x, suc y => eq x y
 
-\func gcd (x y : Nat) => {?}
+\func mod (x y : Nat) : Nat
+  | zero, y => zero
+  | x , zero => x
+  | suc x, suc y => if (eq (mod x (suc y)) y) 0 (suc (mod x (suc y))) -- \where md => mod x (suc y)
+-- TODO how to reuse value of 'mod x (suc y)'
+
+\func \infix 4 <= (x y : Nat) : Bool
+  | 0, _ => true
+  | suc x, 0 => false
+  | suc x, suc y => x <= y
+
+-- termination checker fails here
+-- \func gcd' (x y : Nat) : Nat
+--   | 0, 0 => 0
+--   | 0, suc y => suc y
+--   | suc x, 0 => suc x
+--   | suc x, suc y => if (x <= y) (gcd' (x - y) (suc y)) (gcd' (suc x) (y - x))
+
+\func gcd (x y : Nat) : Nat
+  | 0, 0 => 0
+  | 0, suc y => suc y
+  | suc x, 0 => suc x
+  | suc x, suc y => if (eq (gcd x (suc y)) y) 0 (gcd x (suc y) + 1) -- TODO how to reuse "gcd x (suc y)"
+
+
 
 -- 6. Define the map function.
 
 \data List (A : \Type) | nil | \infixr 5 :: A (List A)
 
-\func map {A B : \Type} (f : A -> B) (xs : List A) : List B => {?}
+\func map {A B : \Type} (f : A -> B) (xs : List A) : List B \elim xs
+  | nil => nil {B}
+  | h :: t => f h :: map f t
 
 -- 7. Define the transpose function.
 --    It takes a list of lists considered as a matrix and returns a list of lists which represents the transposed matrix.
 --    Example:
 --    transpose ((1 :: 2 :: 3 :: nil) :: (4 :: 5 :: 6 :: nil)) == ((1 :: 4 :: nil) :: (2 :: 5 :: nil) :: (3 :: 6 :: nil))
+\func transpose {A : \Type} (xs : List (List A)) : List (List A) \elim xs
+  | nil => nil
+  | h :: t =>  -- TODO

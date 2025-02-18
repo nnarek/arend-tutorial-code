@@ -1,4 +1,5 @@
 \import EqualityProofs
+\import Prelude
 
 -- 1. The operator 'J' has a different form, which we denote 'Jalt'. Prove that 'J' and 'Jalt' are equivalent, i.e.
 -- define 'J' in terms of 'Jalt' and vice versa.
@@ -22,32 +23,126 @@
 
 -- 2. Prove that 'vnil' is an identity for 'v++'.
 
-\func vnil-rightId {A : \Type} {n : Nat} (xs : Vec A n) : transport (Vec A) (+-comm 0 n) (xs v++ vnil) = xs => {?}
+\func vnil-rightId {A : \Type} {n : Nat} (xs : Vec A n) : transport (Vec A) (+-comm 0 n) (xs v++ vnil) = xs \elim n, xs
+  | 0, vnil => {?}
+  | suc n, vcons a xs => {?}
 
 -- 3. Prove that all definitions of <= given in the module are equivalent.
+
+-- proved equivalence circularly
+\func LessOrEq->LessOrEq' (n m : Nat) (p : LessOrEq n m) : LessOrEq' n m \elim n, m, p
+  | 0, m, z<=n => z<=n' idp
+  | suc n, suc m, s<=s p => s<=s' idp idp (LessOrEq->LessOrEq' n m p)
+
+\func LessOrEq'->LessOrEq'' (n m : Nat) (p : LessOrEq' n m) : LessOrEq'' n m \elim n,m, p
+  | _, 0, z<=n' p => <=-refl p
+  | _, 0, s<=s' p () p2
+  | _, suc m, z<=n' idp => <=-step (LessOrEq'->LessOrEq'' 0 m (z<=n' idp))
+  | suc n, suc m, s<=s' p p1 p2 => LessOrEq''-suc n m (LessOrEq'->LessOrEq'' n m (transport (LessOrEq' n) {?} {?}))
+  \where {
+    \func LessOrEq''-suc (n m : Nat) (p :  LessOrEq'' n m) : LessOrEq'' (suc n) (suc m)
+      | n, suc m, <=-step p => <=-step (LessOrEq''-suc n m p)
+      | n, m, <=-refl p => transport (\lam x => LessOrEq'' (suc n) (suc x)) p (<=-refl idp)
+      -- TODO how to avoid from transport and use "idp" instead of "p"
+    \func suc-inj (n m : Nat) (p : suc n = suc m) : n = m \elim n, m, p
+      | 0, 0, p => idp
+      | suc n, suc m, p => suc-inj n m {?}
+  }
+
+
+\func LessOrEq''->LessOrEq (n m : Nat) (p : LessOrEq'' n m) : LessOrEq n m \elim n,m, p
+  | n, suc m, <=-step p => LessOrEq-suc n m (LessOrEq''->LessOrEq n m p)
+  | n, m, <=-refl p => transport (LessOrEq n) p (LessOrEq-same n)
+  \where
+    \func LessOrEq-suc (n m : Nat) (p : LessOrEq n m) : LessOrEq n (suc m)
+      | 0, m, z<=n => z<=n
+      | suc n, suc m, s<=s p => s<=s (LessOrEq-suc n m p)
+    \func LessOrEq-same (n : Nat) : LessOrEq n n \elim n
+      | 0 => z<=n
+      | suc n => s<=s (LessOrEq-same n)
+
+
+\func LessOrEq=LessOrEq' (n m : Nat) : LessOrEq n m = LessOrEq' n m => {?} -- TODO
+
 
 -- 4. Define the membership predicate 'In' for lists.
 
 \data List (A : \Type) | nil | cons A (List A)
 
 \data In {A : \Type} (a : A) (xs : List A)
+  | head (x : List A) (eq : xs = cons a x) -- we can remove "eq" name
+  | inside (xs' : List A) (in : In a xs') (b : A) (eq : xs = cons b xs') -- we can remove "in" and "eq" names
+
+\data In' {A : \Type} (a : A) (xs : List A) \elim xs
+  | cons b xs' => {
+        | head' (a = b)
+        | inside' (In' a xs')
+  }
+-- Arend have no support of agda like syntax
+-- \data In'' {A : \Type} A (List A) : \Type
+--   | head'' (a : A) (x : List A) : In'' a (cons a x)
+--   | inside'' (a : A) (x : List A) (b : A) (In'' a x) : In'' a (cons b x)
+
+-- \data In''' {A : \Type} A (List A) : \Type
+--   | head''' : \Pi (a : A) (x : List A) -> In''' a (cons a x)
+--   | inside''' : \Pi (a : A) (x : List A) (b : A) (In''' a x) -> In''' a (cons b x)
+
 
 -- 5. Define reflexive and transitive closure of a relation.
 --    That is 'ReflTransClosure R' -- is the minimal reflexive and transitive relation containing R.
 
 \data ReflTransClosure {A : \Type} (R : A -> A -> \Type) (x y : A)
+  | relClosure (R x y)
+  | rflClosure (x = y)
+  | transClosure (z : A) (ReflTransClosure R x z) (ReflTransClosure R z y)
 
 -- 6. Prove that if 'R' is already reflexive and transitive then 'ReflTransClosure R' is equivalent to 'R'.
 
 \func \infix 4 <-> {A : \Type} (P Q : A -> A -> \Type) => \Pi (x y : A) -> \Sigma (P x y -> Q x y) (Q x y -> P x y)
 
-\func ReflTransClosure-lem {A : \Type} (R : A -> A -> \Type) (refl : \Pi (x : A) -> R x x) (trans : \Pi (x y z : A) -> R x y -> R y z -> R x z) : R <-> ReflTransClosure R => {?}
+
+
+\func ReflTransClosure-lem {A : \Type} (R : A -> A -> \Type) (refl : \Pi (x : A) -> R x x) (trans : \Pi (x y z : A) -> R x y -> R y z -> R x z) : R <-> ReflTransClosure R
+  => \lam x y => (\lam rxy => relClosure rxy , \lam rtcxy => rtc-imp-r rtcxy refl trans)
+  \where {
+    \func rtc-imp-r {A : \Type} {R : A -> A -> \Type} {x y : A}
+                                     (rtcxy : ReflTransClosure R x y)
+                                     (refl : \Pi (x : A) -> R x x)
+                                     (trans : \Pi (x y z : A) -> R x y -> R y z -> R x z)
+                                  : R x y \elim rtcxy
+      | relClosure r => r
+      | rflClosure idp => refl x
+      | transClosure z rtcxz rtczy => trans x z y (rtc-imp-r rtcxz refl trans) (rtc-imp-r rtczy refl trans)
+  }
 
 -- 7. Define the predicate xs <= ys for lists, which says "the list xs is a sublist of ys".
+\data \infix 4 <= {A : \Type} (xs ys : List A) \elim xs, ys
+  | nil, _ => snil
+  | cons x xs, cons y ys => shead (x = y) (xs <= ys)
+  | xs, cons y ys => sinside (xs <= ys)
 
 -- 8. Prove that 'filter xs <= xs' for any list xs.
 
+\import Basics
 
+\func if {A : \Type} (p : Bool) (x y : A) : A \elim p
+  | true => x
+  | false => y
+
+\func filter {A : \Type} (p : A -> Bool) (xs : List A) : List A \elim xs
+  | nil => nil
+  | cons h t => if (p h) (cons h (filter p t)) (filter p t)
+
+
+
+\func filter-sublist {A : \Type} (xs : List A) (p : A -> Bool) : filter p xs <= xs \elim xs
+  | nil => snil
+  | cons a xs => filter-sublist-lemma p a xs (p a)
+  \where {
+    \func filter-sublist-lemma {A : \Type} (p : A -> Bool) (a : A) (xs : List A) (pa : Bool) : if pa (cons a (filter p xs)) (filter p xs) <= cons a xs \elim pa
+      | false => sinside (filter-sublist xs p)
+      | true => shead idp (filter-sublist xs p)
+  }
 
 
 

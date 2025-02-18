@@ -1,18 +1,53 @@
+\import Basics (if)
 \import Case
+\import Indexed (sort)
+\import Prelude
 
 -- 1. Implement any sorting algorithm using \case for pattern matching on the result of comparison of elements
 -- of a list.
+\func insert (x :  Nat) (xs : List Nat) : List Nat \elim xs
+  | nil => cons x nil
+  | cons h t => \case x < h \with {
+              | true => cons x (cons h t) -- TODO why I can not use xs here?
+              | false => cons h (insert x t)
+            }
+
+\func insertion-sort (xs : List Nat) : List Nat \elim xs
+  | nil => nil
+  | cons h t => insert h (insertion-sort t)
 
 -- 2. Define 'filter' via 'if' not using \case.
 --    Prove the lemma 'filter-lem' for this version of 'filter'.
 
-\func filter' {A : \Type} (p : A -> Bool) (xs : List A) : List A => {?}
+\func if {A : \Type} (p : Bool) (x y : A) : A \elim p
+  | true => x
+  | false => y
 
-\func filter-lem {A : \Type} (p : A -> Bool) (xs : List A) : length (filter' p xs) <= length xs => {?}
+\func filter' {A : \Type} (p : A -> Bool) (xs : List A) : List A \elim xs
+  | nil => nil
+  | cons h t => if (p h) (cons h (filter' p t)) (filter' p t)
+
+\func filter-lem {A : \Type} (p : A -> Bool) (xs : List A) : length (filter' p xs) <= length xs \elim xs
+  | nil => unit
+  | cons h t => \case p h \as b \return length (if b (cons h (filter' p t)) (filter' p t)) <= suc (length t) \with {
+    | false => <=-helper (filter-lem p t)
+    | true => filter-lem p t
+  }
 
 -- 3. Prove that, for every function f : Bool -> Bool and every x : Bool, it is true that f (f (f x)) = f x.
 
-\func Bool-lem (f : Bool -> Bool) (x : Bool) : f (f (f x)) = f x => {?}
+
+\func Bool-lem (f : Bool -> Bool) (x : Bool) : f (f (f x)) = f x =>
+  \case x \as x, f true \as ft, idp : f true = ft, f false \as ff, idp : f false = ff \return f (f (f x)) = f x \with {
+    | false, false, ft, false, ff => {?}
+    | false, false, ft, true, ff => {?}
+    | false, true, ft, false, ff => {?}
+    | false, true, ft, true, ff => {?}
+    | true, false, ft, false, ff => {?}
+    | true, false, ft, true, ff => {?}
+    | true, true, ft, false, ff => {?}
+    | true, true, ft, true, ff => {?}
+  }
 
 -- 4. Define the view, which represents a natural number as a pair of the quotient and the remainder of
 -- division by a positive 'm'. Implement the division function.
@@ -28,12 +63,38 @@
 
 \func isEven (n : Nat) => \Sigma (k : Nat) (n = 2 * k)
 
-\func isEven-dec : DecPred isEven => {?}
+\func isEven-dec : DecPred isEven =>
+  \lam n => \case n \as x \return Decide (isEven x) \with {
+        | 0 =>  yes (0,idp)
+        | suc 0 => no (\lam (a,one-even) => not-even-one a one-even )
+        | suc (suc n1) => \case isEven-dec n1 \with {
+                            | yes (a,even-n1) => yes (suc a, {?} )
+                            | no a => no {?}
+                          }
+        }
+  \where {
+    \func not-even-one (n : Nat) (h : 1 = 2 * n)  : Empty
+      | 0, ()
+      | suc n, ()
+
+    \func isEven-dec-lemma (n1 a : Nat) (gg : n1 = 2 * a) : suc (suc n1) = suc (suc (2 * a)) => \case gg \as idpe m : gg \return suc (suc (2 * a)) = suc (suc (2 * a)) \with {
+      | g => {?}
+    }
+    }
+  }
+
+
+
 
 -- 6. Prove that if equality of elements of a type 'A' is decidable, then equality of elements if 'List A' is also decidable.
-
+-- TODO add into doc what is instance
 \instance ListEq {A : \Type} (dec : Eq A) : Eq (List A)
-  | decideEq => {?}
+  | decideEq x y => \case x , y \as x', y' \return Decide (x' = y') \with {
+    | nil, nil => {?}
+    | nil, cons a l => {?}
+    | cons a l, nil => {?}
+    | cons a l, cons a1 l1 => {?}
+  }
 
 -- 7. Prove that if equality of elements of a type 'A' is decidable, then every list of elements of 'A' is either empty,
 -- consists of repetitions of one element or there exist two different elements in 'A'.

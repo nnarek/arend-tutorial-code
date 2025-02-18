@@ -1,18 +1,21 @@
 \import Equality
+\import Prelude
 
 -- 1. Define congruence for functions with two arguments via transport.
 --    It is allowed to use any functions defined via transport.
 
-\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' => {?}
+\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' =>
+  transport (\lam x => f x b = f a' b') (inv p) (pmap (f a') q)
 
 -- 2. Prove that 'transport' can be defined via 'pmap' and 'repl' and vice versa.
 -- The function 'repl' says that if two types are equal then there exists a function between them.
 
 -- Define 'repl' via 'transport'.
-\func repl {A B : \Type} (p : A = B) (a : A) : B => {?}
+\func repl {A B : \Type} (p : A = B) (a : A) : B => transport (\lam x => x) p a
 
 -- Define 'transport' via 'repl' and 'pmap'.
-\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => {?}
+\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' =>
+  repl (pmap B p) b
 
 -- 3. Prove that left = right without using 'transport' or 'coe'.
 
@@ -20,11 +23,13 @@
 
 -- 4. Prove that a = a' and b = b' implies (a,b) = (a',b') without using 'transport'.
 
-\func pairEq {A B : \Type} {a a' : A} {b b' : B} (p : a = a') (q : b = b') : (a,b) = (a',b') => {?}
+\func pairEq {A B : \Type} {a a' : A} {b b' : B} (p : a = a') (q : b = b') : (a,b) = (a',b')
+  | Prelude.idp, Prelude.idp => Prelude.idp
 
 -- 5. Prove that p = p' implies p.1 = p'.1 without using 'transport'.
 
-\func projEq {A : \Type} (B : A -> \Type) {p p' : \Sigma (x : A) (B x)} (t : p = p') : p.1 = p'.1 => {?}
+\func projEq {A : \Type} (B : A -> \Type) {p p' : \Sigma (x : A) (B x)} (t : p = p') : p.1 = p'.1 \elim t
+  | Prelude.idp => Prelude.idp
 
 -- 6. Prove that (\lam x => not (not x)) = (\lam x => x).
 
@@ -32,11 +37,21 @@
   | true => false
   | false => true
 
-\func notNotId : (\lam x => not (not x)) = (\lam x => x) => {?}
+\func notNotId : (\lam x => not (not x)) = (\lam x => x) => funExt _ not-cancel
+  \where {
+    \func not-cancel (a : Bool) : not (not a) = a \elim a
+      | false => idp
+      | true => idp
+  }
+
+\open Nat(+)
 
 -- 7. Define factorial via Nat-rec (i.e., without recursion and pattern matching).
+\func factorial (n : Nat) : Nat => Nat-rec Nat 1 (\lam n-1 fn-1 => (1 + n-1) * (1 + fn-1)) n
 
 -- 8. Prove associativity of Nat.+ via Nat-elim (i.e., without recursion and pattern matching).
+\func add_assoc (a b c : Nat) : a + (b + c) = (a + b) + c =>
+  Nat-elim (\lam a => a + (b + c) = (a + b) + c) idp (\lam suca ha => pmap suc ha) a
 
 -- 9. Define recursor and eliminator for D.
 
@@ -45,9 +60,47 @@
   | con2 D D
   | con3 (Nat -> D)
 
+\func D-elim (P : D -> \Type)
+             (c1 : \Pi (n : Nat) -> P (con1 n))
+             (c2 : \Pi (d1 d2 : D) (pd1 : P d1) (pd2 : P d2) -> P (con2 d1 d2))
+             (c3 : \Pi (nd : Nat -> D) (\Pi (n : Nat) -> P (nd n)) -> P (con3 nd))
+             (d : D)
+             : P d \elim d
+  | con1 n => c1 n
+  | con2 d1 d2 => c2 d1 d2 (D-elim P c1 c2 c3 d1) (D-elim P c1 c2 c3 d2)
+  | con3 nd => c3 nd (\lam n => D-elim P c1 c2 c3 (nd n))
+
+\func D-rec (P : \Type)
+            (c1 : Nat -> P)
+            (c2 : D -> D -> P -> P -> P)
+            (c3 : (Nat -> D) -> (Nat -> P) -> P)
+            (d : D)
+            : P \elim d
+  | con1 n => c1 n
+  | con2 d1 d2 => c2 d1 d2 (D-rec P c1 c2 c3 d1) (D-rec P c1 c2 c3 d2)
+  | con3 nd => c3 nd (\lam n => D-rec P c1 c2 c3 (nd n))
+
 -- 10. Define recursor and eliminator for List.
 
 \data List (A : \Type) | nil | cons A (List A)
+
+\func List-elim (A : \Type)
+                (P : List A -> \Type)
+                (c1 : P nil)
+                (c2 : \Pi (l : List A) (pl : P l) (a : A) -> P (cons a l))
+                (l : List A)
+                : P l \elim l
+  | nil => c1
+  | cons a l => c2 l (List-elim A P c1 c2 l) a
+
+\func List-rec (A : \Type)
+               (P : \Type)
+               (c1 : P)
+               (c2 : List A -> P -> A -> P)
+               (l : List A)
+               : P \elim l
+  | nil => c1
+  | cons a l => c2 l (List-rec A P c1 c2 l) a
 
 -- 11. We defined transport via coe.
 --     Define a special case of coe via transport.
@@ -61,14 +114,20 @@
 
 -- 13. Prove that 0 does not equal to suc x.
 
-\func zero/=suc (x : Nat) (p : 0 = suc x) : Empty => {?}
+\func zero/=suc (x : Nat) (p : 0 = suc x) : Empty \elim p
+  | ()
 
 -- 14. Prove that fac does not equal to suc.
 
-\open Nat(*)
+\open Nat(*, +)
 
 \func fac (n : Nat) : Nat
   | 0 => 1
   | suc n => suc n * fac n
 
-\func fac/=suc (p : fac = suc) : Empty => {?}
+
+
+\func fac/=suc (p : fac = suc) : Empty => elim-lemma (transport (\lam x => x 1 = suc 1) (inv p) idp)
+  \where
+    \func elim-lemma (p : fac 1 = suc 1) : Empty \elim p | ()
+
